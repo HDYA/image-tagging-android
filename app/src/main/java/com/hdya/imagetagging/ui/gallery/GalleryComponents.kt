@@ -209,8 +209,10 @@ fun LabelSelectorDialog(
     val selectedLabelIds = selectedLabels.map { it.id }.toSet()
     
     val filteredLabels = if (searchText.isBlank()) {
-        availableLabels
+        // Show only first 10 labels when no search text
+        availableLabels.take(10)
     } else {
+        // Show search results when typing
         availableLabels.filter { 
             it.name.contains(searchText, ignoreCase = true) 
         }

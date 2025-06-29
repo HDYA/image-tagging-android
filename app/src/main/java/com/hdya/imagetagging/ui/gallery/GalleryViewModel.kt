@@ -71,8 +71,16 @@ class GalleryViewModel(
             }.collect()
         }
         
-        // Load available labels
+        // Load available labels initially and set up periodic refresh
         loadAvailableLabels()
+        
+        // Refresh labels periodically to catch changes from other tabs
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(2000) // Refresh every 2 seconds
+                loadAvailableLabels()
+            }
+        }
     }
     
     fun loadFiles() {
@@ -271,7 +279,21 @@ class GalleryViewModel(
             }
             
             unlabeledIndex?.let { index ->
-                listState.animateScrollToItem(index)
+                // Add bounds checking to prevent crash
+                val maxIndex = if (currentState.groupByDate) {
+                    // Calculate total items in grouped view
+                    var totalItems = 0
+                    currentState.groupedFiles.values.forEach { files ->
+                        totalItems += 1 + files.size // Group header + files
+                    }
+                    totalItems - 1
+                } else {
+                    currentState.files.size - 1
+                }
+                
+                if (index >= 0 && index <= maxIndex) {
+                    listState.animateScrollToItem(index)
+                }
             }
         }
     }
