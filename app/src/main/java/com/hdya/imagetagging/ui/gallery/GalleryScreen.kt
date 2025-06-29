@@ -111,10 +111,21 @@ fun GalleryScreen(
             // File list
             val listState = rememberLazyListState()
             
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column {
+                // Jump to next unlabeled button
+                Button(
+                    onClick = { viewModel.jumpToNextUnlabeled(listState) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    Text("Jump to Next Unlabeled")
+                }
+                
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                 if (uiState.groupByDate) {
                     // Grouped view
                     uiState.groupedFiles.forEach { (groupIndex, files) ->
@@ -123,6 +134,7 @@ fun GalleryScreen(
                                 groupIndex = groupIndex,
                                 fileCount = files.size,
                                 availableLabels = uiState.availableLabels,
+                                viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleGroupLabel(groupIndex, label)
                                 }
@@ -133,6 +145,7 @@ fun GalleryScreen(
                                 file = file,
                                 labels = uiState.fileLabels[file.path] ?: emptyList(),
                                 availableLabels = uiState.availableLabels,
+                                viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleFileLabel(file.path, label)
                                 }
@@ -149,6 +162,7 @@ fun GalleryScreen(
                             file = file,
                             labels = uiState.fileLabels[file.path] ?: emptyList(),
                             availableLabels = uiState.availableLabels,
+                            viewModel = viewModel,
                             onLabelClick = { label ->
                                 viewModel.toggleFileLabel(file.path, label)
                             }
@@ -191,6 +205,7 @@ fun GalleryScreen(
                             viewModel.loadNextPage()
                         }
                     }
+            }
             }
         }
     }

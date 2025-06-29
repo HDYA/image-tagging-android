@@ -1,5 +1,6 @@
 package com.hdya.imagetagging.ui.gallery
 
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hdya.imagetagging.data.*
@@ -36,6 +37,7 @@ class GalleryViewModel(
     val uiState: StateFlow<GalleryUiState> = _uiState.asStateFlow()
     
     private var allFiles: List<MediaFile> = emptyList()
+    private var lastUsedLabel: Label? = null
     
     init {
         // Observe preferences changes
@@ -119,9 +121,24 @@ class GalleryViewModel(
         val allDisplayedFiles = if (page == 0) pageFiles else currentState.files + pageFiles
         
         val groupedFiles = if (currentState.groupByDate) {
-            FileUtils.groupFilesByTime(allDisplayedFiles, currentState.timeThreshold, currentState.dateType)
-                .mapIndexed { index, group -> index to group }
-                .toMap()
+            val groups = FileUtils.groupFilesByTime(allDisplayedFiles, currentState.timeThreshold, currentState.dateType)
+            
+            // Sort groups based on the representative date of each group (using the first file's date as representative)
+            val sortedGroups = groups.sortedBy { group ->
+                val representativeFile = group.firstOrNull()
+                representativeFile?.let { file ->
+                    when (currentState.dateType) {
+                        "CREATE" -> file.dateAdded
+                        "MODIFY" -> file.lastModified
+                        "EXIF" -> file.captureDate ?: file.lastModified
+                        else -> file.captureDate ?: file.lastModified
+                    }
+                } ?: 0L
+            }.let { sortedGroupsList ->
+                if (currentState.sortAscending) sortedGroupsList else sortedGroupsList.reversed()
+            }
+            
+            sortedGroups.mapIndexed { index, group -> index to group }.toMap()
         } else {
             emptyMap()
         }
@@ -196,6 +213,7 @@ class GalleryViewModel(
                     // Add label
                     val fileLabel = FileLabel(filePath = filePath, labelId = label.id)
                     database.fileLabelDao().insertFileLabel(fileLabel)
+                    lastUsedLabel = label // Track last used label
                 }
                 
                 // Refresh file labels
@@ -230,6 +248,7 @@ class GalleryViewModel(
                         // Add label
                         val fileLabel = FileLabel(filePath = file.path, labelId = label.id)
                         database.fileLabelDao().insertFileLabel(fileLabel)
+                        lastUsedLabel = label // Track last used label
                     }
                 }
                 
@@ -239,6 +258,57 @@ class GalleryViewModel(
             } catch (e: Exception) {
                 // Handle error
             }
+        }
+    }
+    
+    fun jumpToNextUnlabeled(listState: LazyListState) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            val unlabeledIndex = if (currentState.groupByDate) {
+                findNextUnlabeledInGroups(currentState)
+            } else {
+                findNextUnlabeledInFlat(currentState)
+            }
+            
+            unlabeledIndex?.let { index ->
+                listState.animateScrollToItem(index)
+            }
+        }
+    }
+    
+    private fun findNextUnlabeledInFlat(uiState: GalleryUiState): Int? {
+        return uiState.files.indexOfFirst { file ->
+            val labels = uiState.fileLabels[file.path] ?: emptyList()
+            labels.isEmpty()
+        }.takeIf { it >= 0 }
+    }
+    
+    private fun findNextUnlabeledInGroups(uiState: GalleryUiState): Int? {
+        var itemIndex = 0
+        
+        for ((groupIndex, files) in uiState.groupedFiles.toSortedMap()) {
+            // Check if any file in this group is unlabeled
+            val hasUnlabeledFile = files.any { file ->
+                val labels = uiState.fileLabels[file.path] ?: emptyList()
+                labels.isEmpty()
+            }
+            
+            if (hasUnlabeledFile) {
+                return itemIndex // Return the index of the group header
+            }
+            
+            itemIndex += 1 + files.size + 1 // Group header + files + spacer
+        }
+        
+        return null
+    }
+    
+    fun getSortedLabelsWithLastUsedFirst(): List<Label> {
+        val currentLabels = _uiState.value.availableLabels
+        return if (lastUsedLabel != null && currentLabels.contains(lastUsedLabel)) {
+            listOf(lastUsedLabel!!) + currentLabels.filter { it.id != lastUsedLabel!!.id }.sortedBy { it.name }
+        } else {
+            currentLabels.sortedBy { it.name }
         }
     }
 }
