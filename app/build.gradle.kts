@@ -4,11 +4,6 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-repositories {
-    google()
-    mavenCentral()
-}
-
 android {
     namespace = "com.hdya.imagetagging"
     compileSdk = 34
