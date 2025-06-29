@@ -183,7 +183,20 @@ class LabelsViewModel(
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
-                database.labelDao().deleteAllLabels()
+                
+                // Get all labels
+                val allLabels = database.labelDao().getAllLabels()
+                // Get all file labels to see which labels are in use
+                val allFileLabels = database.fileLabelDao().getAllFileLabels()
+                val usedLabelIds = allFileLabels.map { it.labelId }.toSet()
+                
+                // Only delete unused labels
+                for (label in allLabels) {
+                    if (!usedLabelIds.contains(label.id)) {
+                        database.labelDao().deleteLabel(label)
+                    }
+                }
+                
                 loadLabels() // Refresh the list
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)

@@ -101,21 +101,23 @@ class SettingsViewModel(
                 val csvContent = StringBuilder()
                 csvContent.append("File Path,Labels\n")
                 
-                // Include ALL files, not just those with labels
-                for (file in allFiles) {
-                    val fileLabelsForFile = groupedByFile[file.path] ?: emptyList()
+                // Include ONLY files that have labels
+                for ((filePath, fileLabelsForFile) in groupedByFile) {
                     val labelNames = fileLabelsForFile.mapNotNull { fileLabel ->
                         labelMap[fileLabel.labelId]?.name
                     }.joinToString(";")
                     
-                    // Escape commas and quotes in file path
-                    val escapedPath = if (file.path.contains(",") || file.path.contains("\"")) {
-                        "\"${file.path.replace("\"", "\"\"")}\"" 
-                    } else {
-                        file.path
+                    // Only include if there are actually labels
+                    if (labelNames.isNotEmpty()) {
+                        // Escape commas and quotes in file path
+                        val escapedPath = if (filePath.contains(",") || filePath.contains("\"")) {
+                            "\"${filePath.replace("\"", "\"\"")}\"" 
+                        } else {
+                            filePath
+                        }
+                        
+                        csvContent.append("$escapedPath,$labelNames\n")
                     }
-                    
-                    csvContent.append("$escapedPath,$labelNames\n")
                 }
                 
                 _csvContent.value = csvContent.toString()

@@ -20,6 +20,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.hdya.imagetagging.data.Label
 import com.hdya.imagetagging.utils.MediaFile
+import com.hdya.imagetagging.utils.PinyinUtils
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -135,7 +136,7 @@ fun MediaFileItem(
     
     if (showLabelSelector) {
         LabelSelectorDialog(
-            availableLabels = viewModel.getSortedLabelsWithLastUsedFirst(),
+            availableLabels = viewModel.getSortedLabelsWithRecentFirst(),
             selectedLabels = labels,
             onDismiss = { showLabelSelector = false },
             onLabelToggle = { label ->
@@ -188,7 +189,7 @@ fun GroupHeader(
     
     if (showLabelSelector) {
         LabelSelectorDialog(
-            availableLabels = viewModel.getSortedLabelsWithLastUsedFirst(),
+            availableLabels = viewModel.getSortedLabelsWithRecentFirst(),
             selectedLabels = emptyList(), // For groups, we don't show pre-selected labels
             onDismiss = { showLabelSelector = false },
             onLabelToggle = { label ->
@@ -212,9 +213,9 @@ fun LabelSelectorDialog(
         // Show only first 10 labels when no search text
         availableLabels.take(10)
     } else {
-        // Show search results when typing
+        // Show search results when typing (with Pinyin support)
         availableLabels.filter { 
-            it.name.contains(searchText, ignoreCase = true) 
+            PinyinUtils.matchesSearch(it.name, searchText)
         }
     }
     

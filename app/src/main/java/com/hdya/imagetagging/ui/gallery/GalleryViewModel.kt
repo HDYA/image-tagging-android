@@ -37,7 +37,7 @@ class GalleryViewModel(
     val uiState: StateFlow<GalleryUiState> = _uiState.asStateFlow()
     
     private var allFiles: List<MediaFile> = emptyList()
-    private var lastUsedLabel: Label? = null
+    private val recentlyUsedLabels = mutableListOf<Label>()
     
     init {
         // Observe preferences changes
@@ -221,7 +221,7 @@ class GalleryViewModel(
                     // Add label
                     val fileLabel = FileLabel(filePath = filePath, labelId = label.id)
                     database.fileLabelDao().insertFileLabel(fileLabel)
-                    lastUsedLabel = label // Track last used label
+                    addToRecentlyUsed(label) // Track recently used label
                 }
                 
                 // Refresh file labels
@@ -256,7 +256,7 @@ class GalleryViewModel(
                         // Add label
                         val fileLabel = FileLabel(filePath = file.path, labelId = label.id)
                         database.fileLabelDao().insertFileLabel(fileLabel)
-                        lastUsedLabel = label // Track last used label
+                        addToRecentlyUsed(label) // Track recently used label
                     }
                 }
                 
@@ -325,12 +325,23 @@ class GalleryViewModel(
         return null
     }
     
-    fun getSortedLabelsWithLastUsedFirst(): List<Label> {
+    fun getSortedLabelsWithRecentFirst(): List<Label> {
         val currentLabels = _uiState.value.availableLabels
-        return if (lastUsedLabel != null && currentLabels.contains(lastUsedLabel)) {
-            listOf(lastUsedLabel!!) + currentLabels.filter { it.id != lastUsedLabel!!.id }.sortedBy { it.name }
-        } else {
-            currentLabels.sortedBy { it.name }
+        val remainingLabels = currentLabels.filter { label -> 
+            !recentlyUsedLabels.any { recent -> recent.id == label.id } 
+        }.sortedBy { it.name }
+        
+        return recentlyUsedLabels.take(10) + remainingLabels
+    }
+    
+    private fun addToRecentlyUsed(label: Label) {
+        // Remove if already in list to avoid duplicates
+        recentlyUsedLabels.removeAll { it.id == label.id }
+        // Add to front
+        recentlyUsedLabels.add(0, label)
+        // Keep only last 10
+        if (recentlyUsedLabels.size > 10) {
+            recentlyUsedLabels.removeAt(recentlyUsedLabels.size - 1)
         }
     }
 }
