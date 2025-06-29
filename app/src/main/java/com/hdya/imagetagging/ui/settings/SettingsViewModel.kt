@@ -80,27 +80,39 @@ class SettingsViewModel(
             try {
                 _isGeneratingCSV.value = true
                 
+                // Get selected directory from preferences
+                val selectedDirectory = preferencesRepository.selectedDirectory.first()
+                if (selectedDirectory == null) {
+                    _csvContent.value = "Error: No directory selected"
+                    return@launch
+                }
+                
+                // Get all media files from the selected directory
+                val allFiles = com.hdya.imagetagging.utils.FileUtils.getMediaFiles(java.io.File(selectedDirectory))
+                
                 // Get all file labels and labels from database
                 val fileLabels = database.fileLabelDao().getAllFileLabels()
                 val labels = database.labelDao().getAllLabels()
                 val labelMap = labels.associateBy { it.id }
                 
-                val csvContent = StringBuilder()
-                csvContent.append("File Path,Labels\n")
-                
                 // Group file labels by file path
                 val groupedByFile = fileLabels.groupBy { it.filePath }
                 
-                for ((filePath, fileLabelsForFile) in groupedByFile) {
+                val csvContent = StringBuilder()
+                csvContent.append("File Path,Labels\n")
+                
+                // Include ALL files, not just those with labels
+                for (file in allFiles) {
+                    val fileLabelsForFile = groupedByFile[file.path] ?: emptyList()
                     val labelNames = fileLabelsForFile.mapNotNull { fileLabel ->
                         labelMap[fileLabel.labelId]?.name
                     }.joinToString(";")
                     
                     // Escape commas and quotes in file path
-                    val escapedPath = if (filePath.contains(",") || filePath.contains("\"")) {
-                        "\"${filePath.replace("\"", "\"\"")}\"" 
+                    val escapedPath = if (file.path.contains(",") || file.path.contains("\"")) {
+                        "\"${file.path.replace("\"", "\"\"")}\"" 
                     } else {
-                        filePath
+                        file.path
                     }
                     
                     csvContent.append("$escapedPath,$labelNames\n")
