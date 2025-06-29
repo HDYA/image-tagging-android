@@ -16,6 +16,7 @@ data class GalleryUiState(
     val groupedFiles: Map<Int, List<MediaFile>> = emptyMap(),
     val groupByDate: Boolean = false,
     val timeThreshold: Int = 3600,
+    val dateType: String = "EXIF",
     val availableLabels: List<Label> = emptyList(),
     val fileLabels: Map<String, List<Label>> = emptyMap(),
     val isLoading: Boolean = false
@@ -35,12 +36,14 @@ class GalleryViewModel(
             combine(
                 preferencesRepository.selectedDirectory,
                 preferencesRepository.groupByDate,
-                preferencesRepository.timeThreshold
-            ) { directory, groupByDate, threshold ->
+                preferencesRepository.timeThreshold,
+                preferencesRepository.dateType
+            ) { directory, groupByDate, threshold, dateType ->
                 _uiState.value = _uiState.value.copy(
                     selectedDirectory = directory,
                     groupByDate = groupByDate,
-                    timeThreshold = threshold
+                    timeThreshold = threshold,
+                    dateType = dateType
                 )
                 if (directory != null) {
                     loadFiles()
@@ -64,7 +67,7 @@ class GalleryViewModel(
                 val files = FileUtils.getMediaFiles(directory)
                 
                 val groupedFiles = if (currentState.groupByDate) {
-                    FileUtils.groupFilesByTime(files, currentState.timeThreshold)
+                    FileUtils.groupFilesByTime(files, currentState.timeThreshold, currentState.dateType)
                         .mapIndexed { index, group -> index to group }
                         .toMap()
                 } else {

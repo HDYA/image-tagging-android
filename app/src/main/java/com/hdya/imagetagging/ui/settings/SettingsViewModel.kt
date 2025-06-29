@@ -11,6 +11,7 @@ data class SettingsUiState(
     val selectedDirectory: String? = null,
     val timeThreshold: Int = 3600,
     val groupByDate: Boolean = false,
+    val dateType: String = "EXIF",
     val isExporting: Boolean = false
 )
 
@@ -24,12 +25,14 @@ class SettingsViewModel(
         preferencesRepository.selectedDirectory,
         preferencesRepository.timeThreshold,
         preferencesRepository.groupByDate,
+        preferencesRepository.dateType,
         _isExporting
-    ) { directory, threshold, groupByDate, isExporting ->
+    ) { directory, threshold, groupByDate, dateType, isExporting ->
         SettingsUiState(
             selectedDirectory = directory,
             timeThreshold = threshold,
             groupByDate = groupByDate,
+            dateType = dateType,
             isExporting = isExporting
         )
     }.stateIn(
@@ -48,6 +51,10 @@ class SettingsViewModel(
     
     suspend fun setGroupByDate(enabled: Boolean) {
         preferencesRepository.setGroupByDate(enabled)
+    }
+    
+    suspend fun setDateType(dateType: String) {
+        preferencesRepository.setDateType(dateType)
     }
     
     fun exportCSV(context: Context) {
