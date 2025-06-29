@@ -34,16 +34,16 @@ class SettingsViewModel(
         preferencesRepository.sortAscending,
         _isGeneratingCSV,
         _csvContent
-    ) { directory, threshold, groupByDate, dateType, sortBy, sortAscending, isGeneratingCSV, csvContent ->
+    ) { values ->
         SettingsUiState(
-            selectedDirectory = directory,
-            timeThreshold = threshold,
-            groupByDate = groupByDate,
-            dateType = dateType,
-            sortBy = sortBy,
-            sortAscending = sortAscending,
-            isGeneratingCSV = isGeneratingCSV,
-            csvContent = csvContent
+            selectedDirectory = values[0] as String?,
+            timeThreshold = values[1] as Int,
+            groupByDate = values[2] as Boolean,
+            dateType = values[3] as String,
+            sortBy = values[4] as String,
+            sortAscending = values[5] as Boolean,
+            isGeneratingCSV = values[6] as Boolean,
+            csvContent = values[7] as String?
         )
     }.stateIn(
         scope = viewModelScope,

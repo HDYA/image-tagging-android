@@ -89,7 +89,7 @@ object FileUtils {
         
         val sorted = files.sortedBy { 
             when (dateType) {
-                "CREATE" -> it.createdAt ?: it.lastModified
+                "CREATE" -> it.dateAdded
                 "MODIFY" -> it.lastModified
                 "EXIF" -> it.captureDate ?: it.lastModified
                 else -> it.captureDate ?: it.lastModified
@@ -101,7 +101,7 @@ object FileUtils {
         
         for (file in sorted) {
             val fileTime = when (dateType) {
-                "CREATE" -> file.createdAt ?: file.lastModified
+                "CREATE" -> file.dateAdded
                 "MODIFY" -> file.lastModified
                 "EXIF" -> file.captureDate ?: file.lastModified
                 else -> file.captureDate ?: file.lastModified
@@ -111,7 +111,7 @@ object FileUtils {
                 currentGroup.add(file)
             } else {
                 val lastFileTime = when (dateType) {
-                    "CREATE" -> currentGroup.last().createdAt ?: currentGroup.last().lastModified
+                    "CREATE" -> currentGroup.last().dateAdded
                     "MODIFY" -> currentGroup.last().lastModified
                     "EXIF" -> currentGroup.last().captureDate ?: currentGroup.last().lastModified
                     else -> currentGroup.last().captureDate ?: currentGroup.last().lastModified

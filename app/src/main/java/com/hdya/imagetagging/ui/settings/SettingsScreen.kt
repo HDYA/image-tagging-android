@@ -272,7 +272,7 @@ fun SettingsScreen(
     }
     
     // CSV Display Dialog
-    if (uiState.csvContent != null) {
+    uiState.csvContent?.let { csvContent ->
         Dialog(
             onDismissRequest = { viewModel.clearCSVContent() }
         ) {
@@ -297,7 +297,7 @@ fun SettingsScreen(
                             Button(
                                 onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("CSV Export", uiState.csvContent)
+                                    val clip = ClipData.newPlainText("CSV Export", csvContent)
                                     clipboard.setPrimaryClip(clip)
                                 }
                             ) {
@@ -316,7 +316,7 @@ fun SettingsScreen(
                     
                     SelectionContainer {
                         Text(
-                            text = uiState.csvContent,
+                            text = csvContent,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier
                                 .fillMaxSize()
