@@ -110,12 +110,15 @@ fun MediaFileItem(
 fun GroupHeader(
     groupIndex: Int,
     fileCount: Int,
-    onClick: () -> Unit
+    availableLabels: List<Label>,
+    onLabelClick: (Label) -> Unit
 ) {
+    var showLabelSelector by remember { mutableStateOf(false) }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable { showLabelSelector = true }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -128,7 +131,23 @@ fun GroupHeader(
                 text = "$fileCount files",
                 style = MaterialTheme.typography.bodySmall
             )
+            Text(
+                text = "Tap to assign labels to all files in this group",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
+    }
+    
+    if (showLabelSelector) {
+        LabelSelectorDialog(
+            availableLabels = availableLabels,
+            selectedLabels = emptyList(), // For groups, we don't show pre-selected labels
+            onDismiss = { showLabelSelector = false },
+            onLabelToggle = { label ->
+                onLabelClick(label)
+            }
+        )
     }
 }
 

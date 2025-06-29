@@ -82,7 +82,10 @@ fun ImageTaggingApp(
                 LabelsScreen(database = database)
             }
             composable(Screen.Settings.route) {
-                SettingsScreen(preferencesRepository = preferencesRepository)
+                SettingsScreen(
+                    preferencesRepository = preferencesRepository,
+                    database = database
+                )
             }
         }
     }

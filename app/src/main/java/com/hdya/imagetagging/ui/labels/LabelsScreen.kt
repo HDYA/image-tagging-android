@@ -69,7 +69,40 @@ fun LabelsScreen(
                 onClick = { importLauncher.launch("text/plain") },
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Import Labels")
+                Text("Import File")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Second row of action buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { 
+                    scope.launch {
+                        viewModel.importLabelsFromClipboard(context)
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Import Clipboard")
+            }
+            
+            Button(
+                onClick = {
+                    scope.launch {
+                        viewModel.clearAllLabels()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Clear All")
             }
         }
         

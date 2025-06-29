@@ -53,6 +53,9 @@ interface LabelDao {
     @Delete
     suspend fun deleteLabel(label: Label)
     
+    @Query("DELETE FROM labels")
+    suspend fun deleteAllLabels()
+    
     @Query("SELECT * FROM labels WHERE name LIKE :search ORDER BY name ASC")
     suspend fun searchLabels(search: String): List<Label>
 }
