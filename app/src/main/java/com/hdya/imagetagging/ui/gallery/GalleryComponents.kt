@@ -1,5 +1,6 @@
 package com.hdya.imagetagging.ui.gallery
 
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,10 +13,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.hdya.imagetagging.data.Label
 import com.hdya.imagetagging.utils.MediaFile
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,9 +29,12 @@ fun MediaFileItem(
     file: MediaFile,
     labels: List<Label>,
     availableLabels: List<Label>,
+    viewModel: GalleryViewModel,
     onLabelClick: (Label) -> Unit
 ) {
     var showLabelSelector by remember { mutableStateOf(false) }
+    var showPreview by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -44,7 +52,38 @@ fun MediaFileItem(
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier
+                    .size(80.dp)
+                    .clickable {
+                        if (file.isVideo) {
+                            // Open video in external app
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    val videoFile = File(file.path)
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        videoFile
+                                    )
+                                    setDataAndType(uri, "video/*")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                // Fallback: try to open with simple intent
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(android.net.Uri.parse("file://${file.path}"), "video/*")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e2: Exception) {
+                                    // Handle error - could show a toast or snackbar
+                                }
+                            }
+                        } else {
+                            showPreview = true
+                        }
+                    },
                 contentScale = ContentScale.Crop
             )
             
@@ -96,12 +135,19 @@ fun MediaFileItem(
     
     if (showLabelSelector) {
         LabelSelectorDialog(
-            availableLabels = availableLabels,
+            availableLabels = viewModel.getSortedLabelsWithLastUsedFirst(),
             selectedLabels = labels,
             onDismiss = { showLabelSelector = false },
             onLabelToggle = { label ->
                 onLabelClick(label)
             }
+        )
+    }
+    
+    if (showPreview) {
+        ImagePreviewDialog(
+            filePath = file.path,
+            onDismiss = { showPreview = false }
         )
     }
 }
@@ -111,6 +157,7 @@ fun GroupHeader(
     groupIndex: Int,
     fileCount: Int,
     availableLabels: List<Label>,
+    viewModel: GalleryViewModel,
     onLabelClick: (Label) -> Unit
 ) {
     var showLabelSelector by remember { mutableStateOf(false) }
@@ -141,7 +188,7 @@ fun GroupHeader(
     
     if (showLabelSelector) {
         LabelSelectorDialog(
-            availableLabels = availableLabels,
+            availableLabels = viewModel.getSortedLabelsWithLastUsedFirst(),
             selectedLabels = emptyList(), // For groups, we don't show pre-selected labels
             onDismiss = { showLabelSelector = false },
             onLabelToggle = { label ->
@@ -206,6 +253,38 @@ fun LabelSelectorDialog(
             }
         }
     )
+}
+
+@Composable
+fun ImagePreviewDialog(
+    filePath: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(filePath)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.95f),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
 }
 
 private fun formatFileDate(timestamp: Long): String {
