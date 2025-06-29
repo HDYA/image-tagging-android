@@ -4,6 +4,11 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+repositories {
+    google()
+    mavenCentral()
+}
+
 android {
     namespace = "com.hdya.imagetagging"
     compileSdk = 34
@@ -72,7 +77,7 @@ dependencies {
     implementation("androidx.exifinterface:exifinterface:1.3.6")
     
     // File picker
-    implementation("androidx.activity:activity-result:1.9.0")
+    implementation("androidx.activity:activity-result:1.8.2")
     
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
