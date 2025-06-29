@@ -71,8 +71,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("androidx.exifinterface:exifinterface:1.3.6")
     
-    // File picker
-    implementation("androidx.activity:activity-result:1.8.2")
+    // File picker functionality is included in activity-compose
     
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
