@@ -47,7 +47,14 @@ class GalleryViewModel(
                 preferencesRepository.dateType,
                 preferencesRepository.sortBy,
                 preferencesRepository.sortAscending
-            ) { directory, groupByDate, threshold, dateType, sortBy, sortAscending ->
+            ) { values ->
+                val directory = values[0] as String?
+                val groupByDate = values[1] as Boolean
+                val threshold = values[2] as Int
+                val dateType = values[3] as String
+                val sortBy = values[4] as String
+                val sortAscending = values[5] as Boolean
+                
                 _uiState.value = _uiState.value.copy(
                     selectedDirectory = directory,
                     groupByDate = groupByDate,
@@ -90,9 +97,11 @@ class GalleryViewModel(
     }
     
     fun loadNextPage() {
-        val currentState = _uiState.value
-        if (currentState.hasMoreFiles && !currentState.isLoading) {
-            loadPage(currentState.currentPage + 1)
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState.hasMoreFiles && !currentState.isLoading) {
+                loadPage(currentState.currentPage + 1)
+            }
         }
     }
     
