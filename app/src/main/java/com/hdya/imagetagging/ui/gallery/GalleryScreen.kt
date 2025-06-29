@@ -111,21 +111,23 @@ fun GalleryScreen(
             // File list
             val listState = rememberLazyListState()
             
-            Column {
-                // Jump to next unlabeled button
-                Button(
-                    onClick = { viewModel.jumpToNextUnlabeled(listState) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                ) {
-                    Text("Jump to Next Unlabeled")
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Jump to next unlabeled button as first item
+                item {
+                    Button(
+                        onClick = { viewModel.jumpToNextUnlabeled(listState) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Text("Jump to Next Unlabeled")
+                    }
                 }
                 
-                LazyColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
                 if (uiState.groupByDate) {
                     // Grouped view
                     uiState.groupedFiles.forEach { (groupIndex, files) ->
@@ -205,7 +207,6 @@ fun GalleryScreen(
                             viewModel.loadNextPage()
                         }
                     }
-            }
             }
         }
     }
