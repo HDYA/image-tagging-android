@@ -16,6 +16,8 @@ class PreferencesRepository(private val context: Context) {
         val TIME_THRESHOLD = intPreferencesKey("time_threshold")
         val GROUP_BY_DATE = booleanPreferencesKey("group_by_date")
         val DATE_TYPE = stringPreferencesKey("date_type")
+        val SORT_BY = stringPreferencesKey("sort_by")
+        val SORT_ASCENDING = booleanPreferencesKey("sort_ascending")
     }
     
     val selectedDirectory: Flow<String?> = context.dataStore.data
@@ -36,6 +38,16 @@ class PreferencesRepository(private val context: Context) {
     val dateType: Flow<String> = context.dataStore.data
         .map { preferences ->
             preferences[DATE_TYPE] ?: "EXIF" // Default to EXIF taken time
+        }
+    
+    val sortBy: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[SORT_BY] ?: "NAME" // Default to sort by name
+        }
+    
+    val sortAscending: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SORT_ASCENDING] ?: true // Default to ascending
         }
     
     suspend fun setSelectedDirectory(directory: String) {
@@ -59,6 +71,18 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setDateType(dateType: String) {
         context.dataStore.edit { preferences ->
             preferences[DATE_TYPE] = dateType
+        }
+    }
+    
+    suspend fun setSortBy(sortBy: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SORT_BY] = sortBy
+        }
+    }
+    
+    suspend fun setSortAscending(ascending: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SORT_ASCENDING] = ascending
         }
     }
 }

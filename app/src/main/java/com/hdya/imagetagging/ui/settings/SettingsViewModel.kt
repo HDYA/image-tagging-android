@@ -12,28 +12,38 @@ data class SettingsUiState(
     val timeThreshold: Int = 3600,
     val groupByDate: Boolean = false,
     val dateType: String = "EXIF",
-    val isExporting: Boolean = false
+    val sortBy: String = "NAME",
+    val sortAscending: Boolean = true,
+    val isGeneratingCSV: Boolean = false,
+    val csvContent: String? = null
 )
 
 class SettingsViewModel(
     private val preferencesRepository: PreferencesRepository
 ) : ViewModel() {
     
-    private val _isExporting = MutableStateFlow(false)
+    private val _isGeneratingCSV = MutableStateFlow(false)
+    private val _csvContent = MutableStateFlow<String?>(null)
     
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesRepository.selectedDirectory,
         preferencesRepository.timeThreshold,
         preferencesRepository.groupByDate,
         preferencesRepository.dateType,
-        _isExporting
-    ) { directory, threshold, groupByDate, dateType, isExporting ->
+        preferencesRepository.sortBy,
+        preferencesRepository.sortAscending,
+        _isGeneratingCSV,
+        _csvContent
+    ) { directory, threshold, groupByDate, dateType, sortBy, sortAscending, isGeneratingCSV, csvContent ->
         SettingsUiState(
             selectedDirectory = directory,
             timeThreshold = threshold,
             groupByDate = groupByDate,
             dateType = dateType,
-            isExporting = isExporting
+            sortBy = sortBy,
+            sortAscending = sortAscending,
+            isGeneratingCSV = isGeneratingCSV,
+            csvContent = csvContent
         )
     }.stateIn(
         scope = viewModelScope,
@@ -57,18 +67,57 @@ class SettingsViewModel(
         preferencesRepository.setDateType(dateType)
     }
     
-    fun exportCSV(context: Context) {
+    suspend fun setSortBy(sortBy: String) {
+        preferencesRepository.setSortBy(sortBy)
+    }
+    
+    suspend fun setSortAscending(ascending: Boolean) {
+        preferencesRepository.setSortAscending(ascending)
+    }
+    
+    fun generateCSVContent(context: Context, database: com.hdya.imagetagging.data.AppDatabase) {
         viewModelScope.launch {
             try {
-                _isExporting.value = true
-                // TODO: Implement actual CSV export with file labels from database
-                // For now, create an empty CSV file
-                kotlinx.coroutines.delay(1000) // Simulate work
+                _isGeneratingCSV.value = true
+                
+                // Get all file labels and labels from database
+                val fileLabels = database.fileLabelDao().getAllFileLabels()
+                val labels = database.labelDao().getAllLabels()
+                val labelMap = labels.associateBy { it.id }
+                
+                val csvContent = StringBuilder()
+                csvContent.append("File Path,Labels\n")
+                
+                // Group file labels by file path
+                val groupedByFile = fileLabels.groupBy { it.filePath }
+                
+                for ((filePath, fileLabelsForFile) in groupedByFile) {
+                    val labelNames = fileLabelsForFile.mapNotNull { fileLabel ->
+                        labelMap[fileLabel.labelId]?.name
+                    }.joinToString(";")
+                    
+                    // Escape commas and quotes in file path
+                    val escapedPath = if (filePath.contains(",") || filePath.contains("\"")) {
+                        "\"${filePath.replace("\"", "\"\"")}\"" 
+                    } else {
+                        filePath
+                    }
+                    
+                    csvContent.append("$escapedPath,$labelNames\n")
+                }
+                
+                _csvContent.value = csvContent.toString()
+                
             } catch (e: Exception) {
                 // Handle error
+                _csvContent.value = "Error generating CSV: ${e.message}"
             } finally {
-                _isExporting.value = false
+                _isGeneratingCSV.value = false
             }
         }
+    }
+    
+    fun clearCSVContent() {
+        _csvContent.value = null
     }
 }

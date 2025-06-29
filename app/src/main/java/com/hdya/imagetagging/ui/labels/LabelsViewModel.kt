@@ -1,5 +1,6 @@
 package com.hdya.imagetagging.ui.labels
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -127,6 +128,64 @@ class LabelsViewModel(
                 
             } catch (e: Exception) {
                 // Handle error - could show a toast or error message
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+    
+    fun importLabelsFromClipboard(context: Context) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipData = clipboard.primaryClip
+                
+                if (clipData != null && clipData.itemCount > 0) {
+                    val clipText = clipData.getItemAt(0).text?.toString()
+                    
+                    if (!clipText.isNullOrBlank()) {
+                        val labelsToImport = mutableListOf<String>()
+                        
+                        // Split by newlines and process each line
+                        clipText.split("\n").forEach { line ->
+                            val trimmedLine = line.trim()
+                            if (trimmedLine.isNotBlank()) {
+                                labelsToImport.add(trimmedLine)
+                            }
+                        }
+                        
+                        // Get existing labels to avoid duplicates
+                        val existingLabels = database.labelDao().getAllLabels().map { it.name.lowercase() }
+                        
+                        // Filter out duplicates and insert new labels
+                        val newLabels = labelsToImport
+                            .filter { it.lowercase() !in existingLabels }
+                            .distinct()
+                            .map { Label(name = it) }
+                        
+                        if (newLabels.isNotEmpty()) {
+                            database.labelDao().insertLabels(newLabels)
+                        }
+                        
+                        loadLabels() // Refresh the list
+                    }
+                }
+                
+            } catch (e: Exception) {
+                // Handle error - could show a toast or error message
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+    
+    fun clearAllLabels() {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                database.labelDao().deleteAllLabels()
+                loadLabels() // Refresh the list
+            } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }

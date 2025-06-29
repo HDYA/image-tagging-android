@@ -2,9 +2,12 @@ package com.hdya.imagetagging.ui.gallery
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -106,7 +109,10 @@ fun GalleryScreen(
             }
         } else {
             // File list
+            val listState = rememberLazyListState()
+            
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (uiState.groupByDate) {
@@ -116,7 +122,10 @@ fun GalleryScreen(
                             GroupHeader(
                                 groupIndex = groupIndex,
                                 fileCount = files.size,
-                                onClick = { /* TODO: Handle group labeling */ }
+                                availableLabels = uiState.availableLabels,
+                                onLabelClick = { label ->
+                                    viewModel.toggleGroupLabel(groupIndex, label)
+                                }
                             )
                         }
                         items(files) { file ->
@@ -146,6 +155,42 @@ fun GalleryScreen(
                         )
                     }
                 }
+                
+                // Load more button/indicator
+                if (uiState.hasMoreFiles) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Button(
+                                onClick = { viewModel.loadNextPage() },
+                                enabled = !uiState.isLoading
+                            ) {
+                                if (uiState.isLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("Load More")
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Auto-load next page when reaching the end
+            LaunchedEffect(listState) {
+                snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                    .collect { lastVisibleIndex ->
+                        if (lastVisibleIndex != null && 
+                            lastVisibleIndex >= uiState.files.size - 5 && 
+                            uiState.hasMoreFiles && 
+                            !uiState.isLoading) {
+                            viewModel.loadNextPage()
+                        }
+                    }
             }
         }
     }

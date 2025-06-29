@@ -17,9 +17,14 @@ data class GalleryUiState(
     val groupByDate: Boolean = false,
     val timeThreshold: Int = 3600,
     val dateType: String = "EXIF",
+    val sortBy: String = "NAME",
+    val sortAscending: Boolean = true,
     val availableLabels: List<Label> = emptyList(),
     val fileLabels: Map<String, List<Label>> = emptyMap(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val currentPage: Int = 0,
+    val pageSize: Int = 100,
+    val hasMoreFiles: Boolean = false
 )
 
 class GalleryViewModel(
@@ -30,6 +35,8 @@ class GalleryViewModel(
     private val _uiState = MutableStateFlow(GalleryUiState())
     val uiState: StateFlow<GalleryUiState> = _uiState.asStateFlow()
     
+    private var allFiles: List<MediaFile> = emptyList()
+    
     init {
         // Observe preferences changes
         viewModelScope.launch {
@@ -37,13 +44,17 @@ class GalleryViewModel(
                 preferencesRepository.selectedDirectory,
                 preferencesRepository.groupByDate,
                 preferencesRepository.timeThreshold,
-                preferencesRepository.dateType
-            ) { directory, groupByDate, threshold, dateType ->
+                preferencesRepository.dateType,
+                preferencesRepository.sortBy,
+                preferencesRepository.sortAscending
+            ) { directory, groupByDate, threshold, dateType, sortBy, sortAscending ->
                 _uiState.value = _uiState.value.copy(
                     selectedDirectory = directory,
                     groupByDate = groupByDate,
                     timeThreshold = threshold,
-                    dateType = dateType
+                    dateType = dateType,
+                    sortBy = sortBy,
+                    sortAscending = sortAscending
                 )
                 if (directory != null) {
                     loadFiles()
@@ -60,32 +71,76 @@ class GalleryViewModel(
             val currentState = _uiState.value
             if (currentState.selectedDirectory == null) return@launch
             
-            _uiState.value = currentState.copy(isLoading = true)
+            _uiState.value = currentState.copy(isLoading = true, currentPage = 0)
             
             try {
                 val directory = File(currentState.selectedDirectory)
-                val files = FileUtils.getMediaFiles(directory)
+                val rawFiles = FileUtils.getMediaFiles(directory)
                 
-                val groupedFiles = if (currentState.groupByDate) {
-                    FileUtils.groupFilesByTime(files, currentState.timeThreshold, currentState.dateType)
-                        .mapIndexed { index, group -> index to group }
-                        .toMap()
-                } else {
-                    emptyMap()
-                }
+                // Sort files based on preferences
+                allFiles = sortFiles(rawFiles, currentState.sortBy, currentState.sortAscending, currentState.dateType)
                 
-                _uiState.value = currentState.copy(
-                    files = files,
-                    groupedFiles = groupedFiles,
-                    isLoading = false
-                )
-                
-                // Load file labels
-                loadFileLabels(files.map { it.path })
+                // Load first page
+                loadPage(0)
                 
             } catch (e: Exception) {
                 _uiState.value = currentState.copy(isLoading = false)
             }
+        }
+    }
+    
+    fun loadNextPage() {
+        val currentState = _uiState.value
+        if (currentState.hasMoreFiles && !currentState.isLoading) {
+            loadPage(currentState.currentPage + 1)
+        }
+    }
+    
+    private suspend fun loadPage(page: Int) {
+        val currentState = _uiState.value
+        val startIndex = page * currentState.pageSize
+        val endIndex = minOf(startIndex + currentState.pageSize, allFiles.size)
+        
+        if (startIndex >= allFiles.size) {
+            _uiState.value = currentState.copy(isLoading = false, hasMoreFiles = false)
+            return
+        }
+        
+        val pageFiles = allFiles.subList(startIndex, endIndex)
+        val allDisplayedFiles = if (page == 0) pageFiles else currentState.files + pageFiles
+        
+        val groupedFiles = if (currentState.groupByDate) {
+            FileUtils.groupFilesByTime(allDisplayedFiles, currentState.timeThreshold, currentState.dateType)
+                .mapIndexed { index, group -> index to group }
+                .toMap()
+        } else {
+            emptyMap()
+        }
+        
+        _uiState.value = currentState.copy(
+            files = allDisplayedFiles,
+            groupedFiles = groupedFiles,
+            currentPage = page,
+            hasMoreFiles = endIndex < allFiles.size,
+            isLoading = false
+        )
+        
+        // Load file labels for the new files
+        loadFileLabels(pageFiles.map { it.path })
+    }
+    
+    private fun sortFiles(files: List<MediaFile>, sortBy: String, ascending: Boolean, dateType: String): List<MediaFile> {
+        return when (sortBy) {
+            "NAME" -> if (ascending) files.sortedBy { it.name } else files.sortedByDescending { it.name }
+            "DATE" -> {
+                when (dateType) {
+                    "EXIF" -> if (ascending) files.sortedBy { it.exifDate ?: it.lastModified } else files.sortedByDescending { it.exifDate ?: it.lastModified }
+                    "CREATE" -> if (ascending) files.sortedBy { it.dateAdded } else files.sortedByDescending { it.dateAdded }
+                    "MODIFY" -> if (ascending) files.sortedBy { it.lastModified } else files.sortedByDescending { it.lastModified }
+                    else -> files
+                }
+            }
+            else -> files
         }
     }
     
@@ -132,6 +187,41 @@ class GalleryViewModel(
                     // Add label
                     val fileLabel = FileLabel(filePath = filePath, labelId = label.id)
                     database.fileLabelDao().insertFileLabel(fileLabel)
+                }
+                
+                // Refresh file labels
+                loadFileLabels(_uiState.value.files.map { it.path })
+                
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+    
+    fun toggleGroupLabel(groupIndex: Int, label: Label) {
+        viewModelScope.launch {
+            try {
+                val groupFiles = _uiState.value.groupedFiles[groupIndex] ?: return@launch
+                
+                // Check if all files in group have this label
+                val allHaveLabel = groupFiles.all { file ->
+                    val fileLabels = _uiState.value.fileLabels[file.path] ?: emptyList()
+                    fileLabels.any { it.id == label.id }
+                }
+                
+                // If all files have the label, remove it from all; otherwise add it to all
+                for (file in groupFiles) {
+                    val currentLabels = _uiState.value.fileLabels[file.path] ?: emptyList()
+                    val hasLabel = currentLabels.any { it.id == label.id }
+                    
+                    if (allHaveLabel && hasLabel) {
+                        // Remove label
+                        database.fileLabelDao().removeFileLabel(file.path, label.id)
+                    } else if (!allHaveLabel && !hasLabel) {
+                        // Add label
+                        val fileLabel = FileLabel(filePath = file.path, labelId = label.id)
+                        database.fileLabelDao().insertFileLabel(fileLabel)
+                    }
                 }
                 
                 // Refresh file labels

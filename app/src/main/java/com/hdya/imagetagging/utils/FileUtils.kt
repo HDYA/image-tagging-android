@@ -13,7 +13,8 @@ data class MediaFile(
     val name: String,
     val size: Long,
     val lastModified: Long,
-    val createdAt: Long? = null,
+    val dateAdded: Long = lastModified,
+    val exifDate: Long? = null,
     val captureDate: Long? = null,
     val isVideo: Boolean = false
 )
@@ -38,13 +39,15 @@ object FileUtils {
         return directory.walkTopDown()
             .filter { it.isFile && isMediaFile(it) }
             .map { file ->
+                val exifDate = getCaptureDate(file)
                 MediaFile(
                     path = file.absolutePath,
                     name = file.name,
                     size = file.length(),
                     lastModified = file.lastModified(),
-                    createdAt = getFileCreationDate(file),
-                    captureDate = getCaptureDate(file),
+                    dateAdded = getFileCreationDate(file) ?: file.lastModified(),
+                    exifDate = exifDate,
+                    captureDate = exifDate,
                     isVideo = isVideoFile(file)
                 )
             }
