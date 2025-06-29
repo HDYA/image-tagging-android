@@ -1,11 +1,15 @@
 package com.hdya.imagetagging.ui.labels
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hdya.imagetagging.data.AppDatabase
 import com.hdya.imagetagging.data.Label
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 data class LabelsUiState(
     val labels: List<Label> = emptyList(),
@@ -68,6 +72,62 @@ class LabelsViewModel(
                 loadLabels() // Refresh the list
             } catch (e: Exception) {
                 // Handle error
+            }
+        }
+    }
+    
+    fun importLabelsFromFile(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(uri)
+                val reader = BufferedReader(InputStreamReader(inputStream))
+                
+                val labelsToImport = mutableListOf<String>()
+                var line: String?
+                
+                while (reader.readLine().also { line = it } != null) {
+                    line?.let { 
+                        // Support different formats:
+                        // 1. Each line is a label
+                        // 2. CSV format with labels separated by commas
+                        val labels = if (it.contains(",")) {
+                            it.split(",").map { label -> label.trim() }
+                        } else {
+                            listOf(it.trim())
+                        }
+                        
+                        labels.forEach { label ->
+                            if (label.isNotBlank()) {
+                                labelsToImport.add(label)
+                            }
+                        }
+                    }
+                }
+                
+                reader.close()
+                inputStream?.close()
+                
+                // Get existing labels to avoid duplicates
+                val existingLabels = database.labelDao().getAllLabels().map { it.name.lowercase() }
+                
+                // Filter out duplicates and insert new labels
+                val newLabels = labelsToImport
+                    .filter { it.lowercase() !in existingLabels }
+                    .distinct()
+                    .map { Label(name = it) }
+                
+                if (newLabels.isNotEmpty()) {
+                    database.labelDao().insertLabels(newLabels)
+                }
+                
+                loadLabels() // Refresh the list
+                
+            } catch (e: Exception) {
+                // Handle error - could show a toast or error message
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }

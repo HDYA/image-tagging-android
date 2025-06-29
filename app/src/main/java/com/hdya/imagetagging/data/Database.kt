@@ -44,6 +44,9 @@ interface LabelDao {
     @Insert
     suspend fun insertLabel(label: Label): Long
     
+    @Insert
+    suspend fun insertLabels(labels: List<Label>): List<Long>
+    
     @Update
     suspend fun updateLabel(label: Label)
     

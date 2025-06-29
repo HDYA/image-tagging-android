@@ -13,6 +13,7 @@ data class MediaFile(
     val name: String,
     val size: Long,
     val lastModified: Long,
+    val createdAt: Long? = null,
     val captureDate: Long? = null,
     val isVideo: Boolean = false
 )
@@ -42,6 +43,7 @@ object FileUtils {
                     name = file.name,
                     size = file.length(),
                     lastModified = file.lastModified(),
+                    createdAt = getFileCreationDate(file),
                     captureDate = getCaptureDate(file),
                     isVideo = isVideoFile(file)
                 )
@@ -69,20 +71,48 @@ object FileUtils {
         }
     }
     
-    fun groupFilesByTime(files: List<MediaFile>, thresholdSeconds: Int): List<List<MediaFile>> {
+    private fun getFileCreationDate(file: File): Long? {
+        return try {
+            // On Android, file creation time is often the same as last modified time
+            // In newer Android versions, we could use BasicFileAttributes but keeping it simple
+            file.lastModified()
+        } catch (e: Exception) {
+            file.lastModified()
+        }
+    }
+    
+    fun groupFilesByTime(files: List<MediaFile>, thresholdSeconds: Int, dateType: String = "EXIF"): List<List<MediaFile>> {
         if (files.isEmpty()) return emptyList()
         
-        val sorted = files.sortedBy { it.captureDate ?: it.lastModified }
+        val sorted = files.sortedBy { 
+            when (dateType) {
+                "CREATE" -> it.createdAt ?: it.lastModified
+                "MODIFY" -> it.lastModified
+                "EXIF" -> it.captureDate ?: it.lastModified
+                else -> it.captureDate ?: it.lastModified
+            }
+        }
+        
         val groups = mutableListOf<MutableList<MediaFile>>()
         var currentGroup = mutableListOf<MediaFile>()
         
         for (file in sorted) {
-            val fileTime = file.captureDate ?: file.lastModified
+            val fileTime = when (dateType) {
+                "CREATE" -> file.createdAt ?: file.lastModified
+                "MODIFY" -> file.lastModified
+                "EXIF" -> file.captureDate ?: file.lastModified
+                else -> file.captureDate ?: file.lastModified
+            }
             
             if (currentGroup.isEmpty()) {
                 currentGroup.add(file)
             } else {
-                val lastFileTime = currentGroup.last().captureDate ?: currentGroup.last().lastModified
+                val lastFileTime = when (dateType) {
+                    "CREATE" -> currentGroup.last().createdAt ?: currentGroup.last().lastModified
+                    "MODIFY" -> currentGroup.last().lastModified
+                    "EXIF" -> currentGroup.last().captureDate ?: currentGroup.last().lastModified
+                    else -> currentGroup.last().captureDate ?: currentGroup.last().lastModified
+                }
                 val timeDiff = Math.abs(fileTime - lastFileTime) / 1000 // Convert to seconds
                 
                 if (timeDiff <= thresholdSeconds) {
