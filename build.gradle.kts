@@ -6,10 +6,10 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.21")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20")
     }
 }
 
 plugins {
-    id("com.google.devtools.ksp") version "1.8.21-1.0.11" apply false
+    id("com.google.devtools.ksp") version "1.9.20-1.0.14" apply false
 }
