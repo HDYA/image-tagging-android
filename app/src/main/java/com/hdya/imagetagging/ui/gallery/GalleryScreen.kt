@@ -1,15 +1,20 @@
 package com.hdya.imagetagging.ui.gallery
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -88,13 +93,22 @@ fun GalleryScreen(
                     )
                 }
             }
-        } else if (uiState.isLoading) {
-            // Loading state
+        } else if (uiState.isLoading && uiState.files.isEmpty()) {
+            // Initial loading state
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = "Loading files...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         } else if (uiState.files.isEmpty()) {
             // No files found
@@ -111,11 +125,12 @@ fun GalleryScreen(
             // File list
             val listState = rememberLazyListState()
             
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                 // Jump to next unlabeled button as first item
                 item {
                     Button(
@@ -196,6 +211,29 @@ fun GalleryScreen(
                 }
             }
             
+            // Scrollbar
+            val needScrollbar by remember {
+                derivedStateOf { listState.canScrollForward || listState.canScrollBackward }
+            }
+            val scrollbarAlpha by animateFloatAsState(
+                targetValue = if (needScrollbar) 0.7f else 0f,
+                label = "scrollbar_alpha"
+            )
+            
+            if (scrollbarAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(6.dp)
+                        .alpha(scrollbarAlpha)
+                        .background(
+                            Color.Gray.copy(alpha = 0.5f),
+                            RoundedCornerShape(3.dp)
+                        )
+                )
+            }
+            
             // Auto-load next page when reaching the end
             LaunchedEffect(listState) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -208,6 +246,7 @@ fun GalleryScreen(
                         }
                     }
             }
+            } // End of Box with scrollbar
         }
     }
 }
