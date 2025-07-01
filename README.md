@@ -3,50 +3,86 @@ An app to tag phone images with customized searchable tags
 
 ## Features
 
-This Android application provides:
+This Android application provides advanced image and video tagging capabilities with performance optimizations for large media collections:
 
 ### 1. Settings View
-- Select a target directory from local storage
-- Persist selected directory across app restarts  
-- Export all labeled images to CSV file
-- Configure time threshold for grouping files
-- Toggle date-based grouping
+- **Directory Selection**: Choose and persist target directory from local storage
+- **CSV Export**: Display labeled images in CSV format with copy-to-clipboard functionality  
+- **Grouping Configuration**: Toggle date-based grouping and configure time thresholds
+- **Date Type Selection**: Choose between EXIF capture time, file creation time, or modification time for grouping
+- **Sorting Options**: Sort files by name or date, in ascending or descending order
+- **Path Filtering**: CSV export shows only files from the currently selected directory
 
 ### 2. Label Management View
-- Display user-defined labels sorted alphabetically
-- Support for Unicode characters (Chinese, etc.)
-- Add, edit, and delete labels
-- Batch operations for label management
+- **Unicode Support**: Full support for Chinese characters and other Unicode symbols
+- **CRUD Operations**: Add, edit, and delete custom labels with alphabetical sorting
+- **Clipboard Import**: Import labels from clipboard (multi-line text with each line as a tag)
+- **Filter Labels**: Text field to filter and search through existing labels
+- **Smart Deletion**: "Clear All" removes only unused labels, preserving labels assigned to files
 
-### 3. Gallery View (Default)
-- Display images and videos from selected directory
-- Thumbnail view with file information
-- Searchable label assignment interface
-- Group files by date/time with configurable threshold
-- Persistent labeling across app restarts
+### 3. Gallery View (Default Launch Screen)
+- **High-Performance Media Discovery**: Efficiently handles directories with 15k+ files using pagination
+- **Thumbnail Display**: Shows thumbnails for supported formats (JPG/JPEG, PNG, GIF, BMP, WebP, RAW formats)
+- **File Format Support**: Displays placeholders for unsupported formats instead of loading thumbnails
+- **Advanced Label Assignment**: 
+  - Searchable dropdown with Chinese Pinyin support (full and initial pinyin)
+  - Shows 10 most recently used labels for quick access
+  - Scrollable tag selection dialog for large tag lists
+- **Group Operations**: Click group headers to assign labels to all files in a time-based group
+- **Image Preview**: Click thumbnails for fullscreen image preview or external video player
+- **Smart Navigation**: "Jump to Next Unlabeled" button to quickly find untagged files
+- **Performance Optimizations**:
+  - Pagination with 100-file batches for smooth scrolling
+  - Auto-loading next page when scrolling near end
+  - Cached grouping information and file labels
+  - Progress indicators for loading operations
 
-## Technical Details
+## Technical Architecture
 
-- **Language**: Kotlin
+### Modern Android Stack
+- **Language**: Kotlin with coroutines for async operations
 - **UI Framework**: Jetpack Compose with Material Design 3
-- **Database**: Room for local persistence
-- **Navigation**: Navigation Compose
-- **Image Loading**: Coil
-- **Permissions**: Accompanist Permissions
-- **File Operations**: ExifInterface for EXIF data
+- **Database**: Room with proper relationship management and caching
+- **Navigation**: Navigation Compose for screen transitions
+- **Image Loading**: Coil for efficient thumbnail loading
+- **Data Storage**: DataStore for preferences persistence
+- **File Operations**: ExifInterface for metadata reading
+- **Performance**: Optimized pagination and caching systems
+
+### Advanced Features
+- **Chinese Pinyin Search**: Enhanced character mapping for comprehensive Chinese text search
+- **Memory Management**: Efficient label and file metadata caching
+- **File Safety**: Read-only operations - never modifies original media files
+- **Responsive UI**: Adapts to different screen sizes and handles large datasets
+- **Error Handling**: Robust error handling with graceful degradation
 
 ## Project Structure
 
 ```
 app/src/main/java/com/hdya/imagetagging/
-├── data/           # Database entities, DAOs, and repositories
+├── data/           # Database entities, DAOs, repositories with relationship management
 ├── ui/             # Compose UI screens and components
-│   ├── gallery/    # Gallery view with image listing and labeling
-│   ├── labels/     # Label management interface
-│   ├── settings/   # Settings and configuration
-│   └── theme/      # UI theme and styling
-└── utils/          # Utility classes for file operations and CSV export
+│   ├── gallery/    # High-performance gallery with pagination and caching
+│   ├── labels/     # Label management with filtering and bulk operations
+│   ├── settings/   # Configuration with advanced sorting and export options
+│   └── theme/      # Material Design 3 theming
+└── utils/          # File operations, CSV export, Pinyin search utilities
 ```
+
+### Key Components
+- **Database Layer**: Room entities with proper relationships and caching
+- **Performance**: Pagination system handling 15k+ files efficiently  
+- **Search**: Enhanced Chinese Pinyin support with comprehensive character mapping
+- **UI Components**: Scrollable dialogs, progress indicators, responsive layouts
+- **File Safety**: Read-only operations with metadata extraction only
+
+## Performance Features
+
+- **Pagination**: Loads files in 100-item batches for smooth scrolling
+- **Caching**: Memory-based caching for labels, file metadata, and grouping information
+- **Lazy Loading**: Thumbnails loaded only for supported formats when needed
+- **Smart Refresh**: Incremental label updates without full reload
+- **Progress Feedback**: Loading indicators and status messages for better UX
 
 ## Getting Started
 

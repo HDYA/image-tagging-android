@@ -3,6 +3,7 @@ package com.hdya.imagetagging.ui.gallery
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -21,6 +22,7 @@ import coil.request.ImageRequest
 import com.hdya.imagetagging.data.Label
 import com.hdya.imagetagging.utils.MediaFile
 import com.hdya.imagetagging.utils.PinyinUtils
+import com.hdya.imagetagging.utils.FileUtils
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -47,46 +49,90 @@ fun MediaFileItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Thumbnail
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(file.path)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clickable {
-                        if (file.isVideo) {
-                            // Open video in external app
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    val videoFile = File(file.path)
-                                    val uri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.fileprovider",
-                                        videoFile
-                                    )
-                                    setDataAndType(uri, "video/*")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                // Fallback: try to open with simple intent
+            if (FileUtils.supportsThumbnail(File(file.path))) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(file.path)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clickable {
+                            if (file.isVideo) {
+                                // Open video in external app
                                 try {
                                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        setDataAndType(android.net.Uri.parse("file://${file.path}"), "video/*")
+                                        val videoFile = File(file.path)
+                                        val uri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            videoFile
+                                        )
+                                        setDataAndType(uri, "video/*")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
                                     context.startActivity(intent)
-                                } catch (e2: Exception) {
-                                    // Handle error - could show a toast or snackbar
+                                } catch (e: Exception) {
+                                    // Fallback: try to open with simple intent
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(android.net.Uri.parse("file://${file.path}"), "video/*")
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e2: Exception) {
+                                        // Handle error - could show a toast or snackbar
+                                    }
                                 }
+                            } else {
+                                showPreview = true
                             }
-                        } else {
-                            showPreview = true
-                        }
-                    },
-                contentScale = ContentScale.Crop
-            )
+                        },
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Show a placeholder for unsupported formats
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clickable {
+                            if (file.isVideo) {
+                                // Open video in external app
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        val videoFile = File(file.path)
+                                        val uri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            videoFile
+                                        )
+                                        setDataAndType(uri, "video/*")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // Fallback: try to open with simple intent
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(android.net.Uri.parse("file://${file.path}"), "video/*")
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e2: Exception) {
+                                        // Handle error - could show a toast or snackbar
+                                    }
+                                }
+                            } else {
+                                showPreview = true
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = file.name.take(3).uppercase(),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
             
             // File info and labels
             Column(
@@ -233,19 +279,27 @@ fun LabelSelectorDialog(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                filteredLabels.forEach { label ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onLabelToggle(label) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = selectedLabelIds.contains(label.id),
-                            onCheckedChange = { onLabelToggle(label) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(label.name)
+                // Make the labels list scrollable with a defined height
+                LazyColumn(
+                    modifier = Modifier
+                        .height(300.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(filteredLabels) { label ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onLabelToggle(label) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = selectedLabelIds.contains(label.id),
+                                onCheckedChange = { onLabelToggle(label) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label.name)
+                        }
                     }
                 }
             }

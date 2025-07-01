@@ -89,14 +89,18 @@ class SettingsViewModel(
                 
                 // Get all media files from the selected directory
                 val allFiles = com.hdya.imagetagging.utils.FileUtils.getMediaFiles(java.io.File(selectedDirectory))
+                val filePaths = allFiles.map { it.path }.toSet()
                 
                 // Get all file labels and labels from database
                 val fileLabels = database.fileLabelDao().getAllFileLabels()
                 val labels = database.labelDao().getAllLabels()
                 val labelMap = labels.associateBy { it.id }
                 
+                // Filter file labels to only include files from the current directory
+                val filteredFileLabels = fileLabels.filter { filePaths.contains(it.filePath) }
+                
                 // Group file labels by file path
-                val groupedByFile = fileLabels.groupBy { it.filePath }
+                val groupedByFile = filteredFileLabels.groupBy { it.filePath }
                 
                 val csvContent = StringBuilder()
                 csvContent.append("File Path,Labels\n")

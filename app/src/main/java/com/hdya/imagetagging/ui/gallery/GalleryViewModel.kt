@@ -195,14 +195,18 @@ class GalleryViewModel(
             val allLabels = database.labelDao().getAllLabels()
             val labelMap = allLabels.associateBy { it.id }
             
-            val fileLabelsMap = allFileLabels
+            val newFileLabelsMap = allFileLabels
                 .filter { filePaths.contains(it.filePath) }
                 .groupBy { it.filePath }
                 .mapValues { (_, fileLabels) ->
                     fileLabels.mapNotNull { labelMap[it.labelId] }
                 }
             
-            _uiState.value = _uiState.value.copy(fileLabels = fileLabelsMap)
+            // Merge with existing file labels instead of replacing
+            val currentFileLabels = _uiState.value.fileLabels.toMutableMap()
+            currentFileLabels.putAll(newFileLabelsMap)
+            
+            _uiState.value = _uiState.value.copy(fileLabels = currentFileLabels)
         } catch (e: Exception) {
             // Handle error
         }
@@ -224,8 +228,16 @@ class GalleryViewModel(
                     addToRecentlyUsed(label) // Track recently used label
                 }
                 
-                // Refresh file labels
-                loadFileLabels(_uiState.value.files.map { it.path })
+                // Refresh just this file's labels by merging into existing map
+                val allFileLabels = database.fileLabelDao().getLabelsForFile(filePath)
+                val allLabels = database.labelDao().getAllLabels()
+                val labelMap = allLabels.associateBy { it.id }
+                
+                val updatedLabels = allFileLabels.mapNotNull { labelMap[it.labelId] }
+                val currentFileLabels = _uiState.value.fileLabels.toMutableMap()
+                currentFileLabels[filePath] = updatedLabels
+                
+                _uiState.value = _uiState.value.copy(fileLabels = currentFileLabels)
                 
             } catch (e: Exception) {
                 // Handle error
@@ -260,8 +272,17 @@ class GalleryViewModel(
                     }
                 }
                 
-                // Refresh file labels
-                loadFileLabels(_uiState.value.files.map { it.path })
+                // Refresh labels for all files in the group
+                val allLabels = database.labelDao().getAllLabels()
+                val labelMap = allLabels.associateBy { it.id }
+                val currentFileLabels = _uiState.value.fileLabels.toMutableMap()
+                
+                for (file in groupFiles) {
+                    val fileLabels = database.fileLabelDao().getLabelsForFile(file.path)
+                    currentFileLabels[file.path] = fileLabels.mapNotNull { labelMap[it.labelId] }
+                }
+                
+                _uiState.value = _uiState.value.copy(fileLabels = currentFileLabels)
                 
             } catch (e: Exception) {
                 // Handle error

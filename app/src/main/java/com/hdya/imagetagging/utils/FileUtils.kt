@@ -23,6 +23,7 @@ object FileUtils {
     
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
     private val videoExtensions = setOf("mp4", "avi", "mov", "mkv", "3gp", "webm")
+    private val thumbnailSupportedExtensions = setOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "nef", "cr2", "arw", "dng", "raf", "rw2")
     
     fun isMediaFile(file: File): Boolean {
         val extension = file.extension.lowercase()
@@ -31,6 +32,10 @@ object FileUtils {
     
     fun isVideoFile(file: File): Boolean {
         return videoExtensions.contains(file.extension.lowercase())
+    }
+    
+    fun supportsThumbnail(file: File): Boolean {
+        return thumbnailSupportedExtensions.contains(file.extension.lowercase())
     }
     
     fun getMediaFiles(directory: File): List<MediaFile> {
