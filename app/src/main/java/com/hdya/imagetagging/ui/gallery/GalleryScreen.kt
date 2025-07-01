@@ -88,13 +88,22 @@ fun GalleryScreen(
                     )
                 }
             }
-        } else if (uiState.isLoading) {
-            // Loading state
+        } else if (uiState.isLoading && uiState.files.isEmpty()) {
+            // Initial loading state
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = "Loading files...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         } else if (uiState.files.isEmpty()) {
             // No files found

@@ -1,7 +1,5 @@
 package com.hdya.imagetagging.ui.labels
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,18 +31,8 @@ fun LabelsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingLabel by remember { mutableStateOf<Label?>(null) }
+    var filterText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    
-    // File picker for importing labels
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                viewModel.importLabelsFromFile(context, it)
-            }
-        }
-    }
     
     Column(
         modifier = Modifier
@@ -66,21 +54,6 @@ fun LabelsScreen(
             }
             
             Button(
-                onClick = { importLauncher.launch("text/plain") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Import File")
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Second row of action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
                 onClick = { 
                     scope.launch {
                         viewModel.importLabelsFromClipboard(context)
@@ -90,32 +63,58 @@ fun LabelsScreen(
             ) {
                 Text("Import Clipboard")
             }
-            
-            Button(
-                onClick = {
-                    scope.launch {
-                        viewModel.clearAllLabels()
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Clear All")
-            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Clear All button
+        Button(
+            onClick = {
+                scope.launch {
+                    viewModel.clearAllLabels()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Text("Clear All")
         }
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Filter text field
+        OutlinedTextField(
+            value = filterText,
+            onValueChange = { filterText = it },
+            label = { Text("Filter labels") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         // Labels list
-        if (uiState.labels.isEmpty()) {
+        val filteredLabels = if (filterText.isBlank()) {
+            uiState.labels
+        } else {
+            uiState.labels.filter { label ->
+                label.name.lowercase().contains(filterText.lowercase().trim())
+            }
+        }
+        
+        if (filteredLabels.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No labels yet. Add some labels to get started!",
+                    text = if (filterText.isBlank()) {
+                        "No labels yet. Add some labels to get started!"
+                    } else {
+                        "No labels match the filter \"$filterText\""
+                    },
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -123,7 +122,7 @@ fun LabelsScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiState.labels) { label ->
+                items(filteredLabels) { label ->
                     LabelItem(
                         label = label,
                         onEdit = { editingLabel = label },
