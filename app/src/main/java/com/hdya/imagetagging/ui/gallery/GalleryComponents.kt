@@ -256,8 +256,8 @@ fun LabelSelectorDialog(
     val selectedLabelIds = selectedLabels.map { it.id }.toSet()
     
     val filteredLabels = if (searchText.isBlank()) {
-        // Show only first 10 labels when no search text
-        availableLabels.take(10)
+        // Show all recently used labels first, then remaining labels alphabetically
+        availableLabels
     } else {
         // Show search results when typing (with Pinyin support)
         availableLabels.filter { 

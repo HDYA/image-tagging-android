@@ -23,6 +23,7 @@ data class GalleryUiState(
     val availableLabels: List<Label> = emptyList(),
     val fileLabels: Map<String, List<Label>> = emptyMap(),
     val isLoading: Boolean = false,
+    val isProcessing: Boolean = false, // New state for UI processing
     val currentPage: Int = 0,
     val pageSize: Int = 100,
     val hasMoreFiles: Boolean = false
@@ -88,7 +89,7 @@ class GalleryViewModel(
             val currentState = _uiState.value
             if (currentState.selectedDirectory == null) return@launch
             
-            _uiState.value = currentState.copy(isLoading = true, currentPage = 0)
+            _uiState.value = currentState.copy(isLoading = true, isProcessing = true, currentPage = 0)
             
             try {
                 val directory = File(currentState.selectedDirectory)
@@ -101,7 +102,7 @@ class GalleryViewModel(
                 loadPage(0)
                 
             } catch (e: Exception) {
-                _uiState.value = currentState.copy(isLoading = false)
+                _uiState.value = currentState.copy(isLoading = false, isProcessing = false)
             }
         }
     }
@@ -121,7 +122,7 @@ class GalleryViewModel(
         val endIndex = minOf(startIndex + currentState.pageSize, allFiles.size)
         
         if (startIndex >= allFiles.size) {
-            _uiState.value = currentState.copy(isLoading = false, hasMoreFiles = false)
+            _uiState.value = currentState.copy(isLoading = false, isProcessing = false, hasMoreFiles = false)
             return
         }
         
@@ -156,7 +157,8 @@ class GalleryViewModel(
             groupedFiles = groupedFiles,
             currentPage = page,
             hasMoreFiles = endIndex < allFiles.size,
-            isLoading = false
+            isLoading = false,
+            isProcessing = false
         )
         
         // Load file labels for the new files
@@ -352,7 +354,7 @@ class GalleryViewModel(
             !recentlyUsedLabels.any { recent -> recent.id == label.id } 
         }.sortedBy { it.name }
         
-        return recentlyUsedLabels.take(10) + remainingLabels
+        return recentlyUsedLabels + remainingLabels
     }
     
     private fun addToRecentlyUsed(label: Label) {
@@ -360,9 +362,6 @@ class GalleryViewModel(
         recentlyUsedLabels.removeAll { it.id == label.id }
         // Add to front
         recentlyUsedLabels.add(0, label)
-        // Keep only last 10
-        if (recentlyUsedLabels.size > 10) {
-            recentlyUsedLabels.removeAt(recentlyUsedLabels.size - 1)
-        }
+        // Keep all recently used labels (no limit)
     }
 }
