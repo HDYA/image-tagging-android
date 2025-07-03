@@ -348,3 +348,78 @@ private fun formatFileDate(timestamp: Long): String {
     val format = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     return format.format(Date(timestamp))
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PageSelector(
+    pages: List<PageInfo>,
+    currentPage: Int,
+    totalFiles: Int,
+    onPageSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Card(
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Page Selection",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    readOnly = true,
+                    value = "Page ${currentPage + 1} of ${pages.size} (${totalFiles} total files)",
+                    onValueChange = {},
+                    label = { Text("Current Page") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor()
+                )
+                
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    pages.forEachIndexed { index, pageInfo ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "Page ${pageInfo.pageIndex + 1}",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = "${pageInfo.firstFileDate} - ${pageInfo.lastFileDate}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = "${pageInfo.firstFileName} ... ${pageInfo.lastFileName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onPageSelected(index)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

@@ -10,6 +10,18 @@ import com.hdya.imagetagging.utils.MediaFile
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+
+data class PageInfo(
+    val pageIndex: Int,
+    val startIndex: Int,
+    val endIndex: Int,
+    val firstFileName: String,
+    val lastFileName: String,
+    val firstFileDate: String,
+    val lastFileDate: String
+)
 
 data class GalleryUiState(
     val selectedDirectory: String? = null,
@@ -25,8 +37,10 @@ data class GalleryUiState(
     val isLoading: Boolean = false,
     val isProcessing: Boolean = false, // New state for UI processing
     val currentPage: Int = 0,
-    val pageSize: Int = 100,
-    val hasMoreFiles: Boolean = false
+    val pageSize: Int = 150, // Updated default
+    val hasMoreFiles: Boolean = false,
+    val pages: List<PageInfo> = emptyList(),
+    val totalFiles: Int = 0
 )
 
 class GalleryViewModel(
@@ -39,6 +53,7 @@ class GalleryViewModel(
     
     private var allFiles: List<MediaFile> = emptyList()
     private val recentlyUsedLabels = mutableListOf<Label>()
+    private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     
     init {
         // Observe preferences changes
@@ -49,7 +64,8 @@ class GalleryViewModel(
                 preferencesRepository.timeThreshold,
                 preferencesRepository.dateType,
                 preferencesRepository.sortBy,
-                preferencesRepository.sortAscending
+                preferencesRepository.sortAscending,
+                preferencesRepository.pageSize
             ) { values ->
                 val directory = values[0] as String?
                 val groupByDate = values[1] as Boolean
@@ -57,6 +73,7 @@ class GalleryViewModel(
                 val dateType = values[3] as String
                 val sortBy = values[4] as String
                 val sortAscending = values[5] as Boolean
+                val pageSize = values[6] as Int
                 
                 _uiState.value = _uiState.value.copy(
                     selectedDirectory = directory,
@@ -64,7 +81,8 @@ class GalleryViewModel(
                     timeThreshold = threshold,
                     dateType = dateType,
                     sortBy = sortBy,
-                    sortAscending = sortAscending
+                    sortAscending = sortAscending,
+                    pageSize = pageSize
                 )
                 if (directory != null) {
                     loadFiles()
@@ -98,6 +116,15 @@ class GalleryViewModel(
                 // Sort files based on preferences
                 allFiles = sortFiles(rawFiles, currentState.sortBy, currentState.sortAscending, currentState.dateType)
                 
+                // Generate page information
+                val pages = generatePageInfo(allFiles, currentState.pageSize, currentState.dateType)
+                
+                _uiState.value = currentState.copy(
+                    pages = pages,
+                    totalFiles = allFiles.size,
+                    hasMoreFiles = allFiles.size > currentState.pageSize
+                )
+                
                 // Load first page
                 loadPage(0)
                 
@@ -116,21 +143,66 @@ class GalleryViewModel(
         }
     }
     
+    fun loadSpecificPage(pageIndex: Int) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            if (pageIndex >= 0 && pageIndex < currentState.pages.size && !currentState.isLoading) {
+                loadPage(pageIndex)
+            }
+        }
+    }
+    
+    private fun generatePageInfo(files: List<MediaFile>, pageSize: Int, dateType: String): List<PageInfo> {
+        val pages = mutableListOf<PageInfo>()
+        
+        for (i in files.indices step pageSize) {
+            val endIndex = minOf(i + pageSize, files.size)
+            val pageFiles = files.subList(i, endIndex)
+            
+            if (pageFiles.isNotEmpty()) {
+                val firstFile = pageFiles.first()
+                val lastFile = pageFiles.last()
+                
+                val firstDate = getFileDate(firstFile, dateType)
+                val lastDate = getFileDate(lastFile, dateType)
+                
+                pages.add(PageInfo(
+                    pageIndex = i / pageSize,
+                    startIndex = i,
+                    endIndex = endIndex - 1,
+                    firstFileName = firstFile.name,
+                    lastFileName = lastFile.name,
+                    firstFileDate = dateFormatter.format(Date(firstDate)),
+                    lastFileDate = dateFormatter.format(Date(lastDate))
+                ))
+            }
+        }
+        
+        return pages
+    }
+    
+    private fun getFileDate(file: MediaFile, dateType: String): Long {
+        return when (dateType) {
+            "CREATE" -> file.dateAdded
+            "MODIFY" -> file.lastModified
+            "EXIF" -> file.captureDate ?: file.lastModified
+            else -> file.captureDate ?: file.lastModified
+        }
+    }
+    
     private suspend fun loadPage(page: Int) {
         val currentState = _uiState.value
-        val startIndex = page * currentState.pageSize
-        val endIndex = minOf(startIndex + currentState.pageSize, allFiles.size)
+        val pageInfo = currentState.pages.getOrNull(page)
         
-        if (startIndex >= allFiles.size) {
+        if (pageInfo == null) {
             _uiState.value = currentState.copy(isLoading = false, isProcessing = false, hasMoreFiles = false)
             return
         }
         
-        val pageFiles = allFiles.subList(startIndex, endIndex)
-        val allDisplayedFiles = if (page == 0) pageFiles else currentState.files + pageFiles
+        val pageFiles = allFiles.subList(pageInfo.startIndex, pageInfo.endIndex + 1)
         
         val groupedFiles = if (currentState.groupByDate) {
-            val groups = FileUtils.groupFilesByTime(allDisplayedFiles, currentState.timeThreshold, currentState.dateType)
+            val groups = FileUtils.groupFilesByTime(pageFiles, currentState.timeThreshold, currentState.dateType)
             
             // Sort groups based on the representative date of each group (using the first file's date as representative)
             val sortedGroups = groups.sortedBy { group ->
@@ -153,10 +225,10 @@ class GalleryViewModel(
         }
         
         _uiState.value = currentState.copy(
-            files = allDisplayedFiles,
+            files = pageFiles,
             groupedFiles = groupedFiles,
             currentPage = page,
-            hasMoreFiles = endIndex < allFiles.size,
+            hasMoreFiles = page < currentState.pages.size - 1,
             isLoading = false,
             isProcessing = false
         )

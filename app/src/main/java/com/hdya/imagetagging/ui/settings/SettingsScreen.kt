@@ -10,10 +10,13 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -242,6 +246,42 @@ fun SettingsScreen(
             }
         }
         
+        // Page Size Configuration
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Page Size Configuration",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = uiState.pageSize.toString(),
+                    onValueChange = { value ->
+                        value.toIntOrNull()?.let { size ->
+                            if (size > 0 && size <= 1000) {
+                                scope.launch {
+                                    viewModel.setPageSize(size)
+                                }
+                            }
+                        }
+                    },
+                    label = { Text("Files per page") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Number of files to display per page (1-1000)",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        
         // CSV Display
         Card(
             modifier = Modifier.fillMaxWidth()
@@ -256,7 +296,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
-                        viewModel.generateCSVContent(context, database)
+                        viewModel.prepareCSVExport(context, database)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isGeneratingCSV
@@ -266,6 +306,75 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                     }
                     Text("Display CSV")
+                }
+            }
+        }
+    }
+    
+    // Page Selector Dialog for CSV Export
+    if (uiState.showPageSelector) {
+        Dialog(
+            onDismissRequest = { viewModel.hidePageSelector() }
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.8f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Select Page for CSV Export",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(uiState.pages) { pageInfo ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.generateCSVForPage(context, database, pageInfo)
+                                    }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = "Page ${pageInfo.pageIndex + 1}",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = "${pageInfo.firstFileDate} - ${pageInfo.lastFileDate}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = "${pageInfo.firstFileName} ... ${pageInfo.lastFileName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Files: ${pageInfo.endIndex - pageInfo.startIndex + 1}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = { viewModel.hidePageSelector() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Cancel")
+                    }
                 }
             }
         }
