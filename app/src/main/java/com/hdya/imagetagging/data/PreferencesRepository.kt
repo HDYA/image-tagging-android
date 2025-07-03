@@ -18,6 +18,7 @@ class PreferencesRepository(private val context: Context) {
         val DATE_TYPE = stringPreferencesKey("date_type")
         val SORT_BY = stringPreferencesKey("sort_by")
         val SORT_ASCENDING = booleanPreferencesKey("sort_ascending")
+        val PAGE_SIZE = intPreferencesKey("page_size")
     }
     
     val selectedDirectory: Flow<String?> = context.dataStore.data
@@ -48,6 +49,11 @@ class PreferencesRepository(private val context: Context) {
     val sortAscending: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[SORT_ASCENDING] ?: true // Default to ascending
+        }
+    
+    val pageSize: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[PAGE_SIZE] ?: 150 // Default page size
         }
     
     suspend fun setSelectedDirectory(directory: String) {
@@ -83,6 +89,12 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setSortAscending(ascending: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[SORT_ASCENDING] = ascending
+        }
+    }
+    
+    suspend fun setPageSize(size: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PAGE_SIZE] = size
         }
     }
 }

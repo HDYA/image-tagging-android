@@ -128,6 +128,23 @@ fun GalleryScreen(
                     }
                 }
                 
+                // Page selector
+                if (uiState.pages.size > 1) {
+                    item {
+                        PageSelector(
+                            pages = uiState.pages,
+                            currentPage = uiState.currentPage,
+                            totalFiles = uiState.totalFiles,
+                            onPageSelected = { pageIndex ->
+                                viewModel.loadSpecificPage(pageIndex)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+                }
+                
                 if (uiState.groupByDate) {
                     // Grouped view
                     uiState.groupedFiles.forEach { (groupIndex, files) ->
@@ -171,42 +188,6 @@ fun GalleryScreen(
                         )
                     }
                 }
-                
-                // Load more button/indicator
-                if (uiState.hasMoreFiles) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Button(
-                                onClick = { viewModel.loadNextPage() },
-                                enabled = !uiState.isLoading
-                            ) {
-                                if (uiState.isLoading) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Text("Load More")
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Auto-load next page when reaching the end
-            LaunchedEffect(listState) {
-                snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                    .collect { lastVisibleIndex ->
-                        if (lastVisibleIndex != null && 
-                            lastVisibleIndex >= uiState.files.size - 5 && 
-                            uiState.hasMoreFiles && 
-                            !uiState.isLoading) {
-                            viewModel.loadNextPage()
-                        }
-                    }
             }
         }
     }
