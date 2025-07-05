@@ -1,5 +1,6 @@
 package com.hdya.imagetagging.ui.gallery
 
+import android.content.Context
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,7 +41,9 @@ data class GalleryUiState(
     val pageSize: Int = 150, // Updated default
     val hasMoreFiles: Boolean = false,
     val pages: List<PageInfo> = emptyList(),
-    val totalFiles: Int = 0
+    val totalFiles: Int = 0,
+    val isGeneratingCSV: Boolean = false,
+    val csvContent: String? = null
 )
 
 class GalleryViewModel(
@@ -55,6 +58,9 @@ class GalleryViewModel(
     private val recentlyUsedLabels = mutableListOf<Label>()
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     
+    private val _isGeneratingCSV = MutableStateFlow(false)
+    private val _csvContent = MutableStateFlow<String?>(null)
+    
     init {
         // Observe preferences changes
         viewModelScope.launch {
@@ -65,7 +71,9 @@ class GalleryViewModel(
                 preferencesRepository.dateType,
                 preferencesRepository.sortBy,
                 preferencesRepository.sortAscending,
-                preferencesRepository.pageSize
+                preferencesRepository.pageSize,
+                _isGeneratingCSV,
+                _csvContent
             ) { values ->
                 val directory = values[0] as String?
                 val groupByDate = values[1] as Boolean
@@ -74,6 +82,8 @@ class GalleryViewModel(
                 val sortBy = values[4] as String
                 val sortAscending = values[5] as Boolean
                 val pageSize = values[6] as Int
+                val isGeneratingCSV = values[7] as Boolean
+                val csvContent = values[8] as String?
                 
                 _uiState.value = _uiState.value.copy(
                     selectedDirectory = directory,
@@ -82,7 +92,9 @@ class GalleryViewModel(
                     dateType = dateType,
                     sortBy = sortBy,
                     sortAscending = sortAscending,
-                    pageSize = pageSize
+                    pageSize = pageSize,
+                    isGeneratingCSV = isGeneratingCSV,
+                    csvContent = csvContent
                 )
                 if (directory != null) {
                     loadFiles()
@@ -435,5 +447,77 @@ class GalleryViewModel(
         // Add to front
         recentlyUsedLabels.add(0, label)
         // Keep all recently used labels (no limit)
+    }
+    
+    fun exportCurrentPageCSV(context: Context) {
+        viewModelScope.launch {
+            _isGeneratingCSV.value = true
+            
+            try {
+                val currentState = _uiState.value
+                val currentPageInfo = currentState.pages.getOrNull(currentState.currentPage)
+                
+                if (currentPageInfo == null) {
+                    _csvContent.value = "Error: No current page found"
+                    return@launch
+                }
+                
+                generateCSVContent(context, currentPageInfo)
+                
+            } catch (e: Exception) {
+                _csvContent.value = "Error generating CSV: ${e.message}"
+            } finally {
+                _isGeneratingCSV.value = false
+            }
+        }
+    }
+    
+    private suspend fun generateCSVContent(context: Context, pageInfo: PageInfo) {
+        try {
+            val currentState = _uiState.value
+            val pageFiles = allFiles.subList(pageInfo.startIndex, pageInfo.endIndex + 1)
+            
+            // Get all file labels for this page
+            val allFileLabels = database.fileLabelDao().getAllFileLabels()
+            val pageFileLabels = allFileLabels.filter { fileLabel ->
+                pageFiles.any { it.path == fileLabel.filePath }
+            }
+            
+            // Get all labels
+            val allLabels = database.labelDao().getAllLabels()
+            val labelMap = allLabels.associateBy { it.id }
+            
+            // Generate CSV content
+            val csvBuilder = StringBuilder()
+            csvBuilder.append("File Path,Labels\n")
+            
+            // Group file labels by file path
+            val groupedByFile = pageFileLabels.groupBy { it.filePath }
+            
+            for (file in pageFiles) {
+                val fileLabels = groupedByFile[file.path] ?: emptyList()
+                val labelNames = fileLabels.mapNotNull { fileLabel ->
+                    labelMap[fileLabel.labelId]?.name
+                }.joinToString(";")
+                
+                // Escape commas and quotes in file path
+                val escapedPath = if (file.path.contains(",") || file.path.contains("\"")) {
+                    "\"${file.path.replace("\"", "\"\"")}\"" 
+                } else {
+                    file.path
+                }
+                
+                csvBuilder.append("$escapedPath,$labelNames\n")
+            }
+            
+            _csvContent.value = csvBuilder.toString()
+            
+        } catch (e: Exception) {
+            _csvContent.value = "Error generating CSV content: ${e.message}"
+        }
+    }
+    
+    fun clearCSVContent() {
+        _csvContent.value = null
     }
 }

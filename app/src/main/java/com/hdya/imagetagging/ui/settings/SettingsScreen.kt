@@ -219,28 +219,30 @@ fun SettingsScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Sort Order",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Text(
+                    text = "Sort Order",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                val sortOrderOptions = listOf(false to "Descending", true to "Ascending")
+                sortOrderOptions.forEach { (ascending, label) ->
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Descending")
-                        Switch(
-                            checked = uiState.sortAscending,
-                            onCheckedChange = { ascending ->
+                        RadioButton(
+                            selected = uiState.sortAscending == ascending,
+                            onClick = {
                                 scope.launch {
                                     viewModel.setSortAscending(ascending)
                                 }
                             }
                         )
-                        Text("Ascending")
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
             }
