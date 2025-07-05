@@ -264,5 +264,9 @@ class SettingsViewModel(
     
     fun clearCSVContent() {
         _csvContent.value = null
+        // If there are multiple pages, go back to page selector
+        if (_pages.value.size > 1) {
+            _showPageSelector.value = true
+        }
     }
 }

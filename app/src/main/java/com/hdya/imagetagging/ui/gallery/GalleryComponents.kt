@@ -404,12 +404,31 @@ fun PageSelector(
                                         text = "${pageInfo.firstFileDate} - ${pageInfo.lastFileDate}",
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                    Text(
-                                        text = "${pageInfo.firstFileName} ... ${pageInfo.lastFileName}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    // Check if filenames are long and display in 2 rows if needed
+                                    val fullFileNameText = "${pageInfo.firstFileName} ... ${pageInfo.lastFileName}"
+                                    if (fullFileNameText.length > 50) {
+                                        // Long filenames - show in 2 rows
+                                        Text(
+                                            text = "Start: ${pageInfo.firstFileName}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "End: ${pageInfo.lastFileName}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    } else {
+                                        // Short filenames - show in single row
+                                        Text(
+                                            text = fullFileNameText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             },
                             onClick = {
