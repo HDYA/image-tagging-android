@@ -340,7 +340,7 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.generateCSVForPage(context, database, pageInfo)
+                                        viewModel.generateCSVForPage(database, pageInfo)
                                     }
                             ) {
                                 Column(

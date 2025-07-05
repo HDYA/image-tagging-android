@@ -415,7 +415,7 @@ class GalleryViewModel(
     private fun findNextUnlabeledInGroups(uiState: GalleryUiState): Int? {
         var itemIndex = 0
         
-        for ((groupIndex, files) in uiState.groupedFiles.toSortedMap()) {
+        for ((_, files) in uiState.groupedFiles.toSortedMap()) {
             // Check if any file in this group is unlabeled
             val hasUnlabeledFile = files.any { file ->
                 val labels = uiState.fileLabels[file.path] ?: emptyList()
@@ -462,7 +462,7 @@ class GalleryViewModel(
                     return@launch
                 }
                 
-                generateCSVContent(context, currentPageInfo)
+                generateCSVContent(currentPageInfo)
                 
             } catch (e: Exception) {
                 _csvContent.value = "Error generating CSV: ${e.message}"
@@ -472,9 +472,8 @@ class GalleryViewModel(
         }
     }
     
-    private suspend fun generateCSVContent(context: Context, pageInfo: PageInfo) {
+    private suspend fun generateCSVContent(pageInfo: PageInfo) {
         try {
-            val currentState = _uiState.value
             val pageFiles = allFiles.subList(pageInfo.startIndex, pageInfo.endIndex + 1)
             
             // Get all file labels for this page

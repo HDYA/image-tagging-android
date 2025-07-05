@@ -207,7 +207,6 @@ fun GalleryScreen(
                             GroupHeader(
                                 groupIndex = groupIndex,
                                 fileCount = files.size,
-                                availableLabels = uiState.availableLabels,
                                 viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleGroupLabel(groupIndex, label)
@@ -218,7 +217,6 @@ fun GalleryScreen(
                             MediaFileItem(
                                 file = file,
                                 labels = uiState.fileLabels[file.path] ?: emptyList(),
-                                availableLabels = uiState.availableLabels,
                                 viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleFileLabel(file.path, label)
@@ -235,7 +233,6 @@ fun GalleryScreen(
                         MediaFileItem(
                             file = file,
                             labels = uiState.fileLabels[file.path] ?: emptyList(),
-                            availableLabels = uiState.availableLabels,
                             viewModel = viewModel,
                             onLabelClick = { label ->
                                 viewModel.toggleFileLabel(file.path, label)

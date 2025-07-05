@@ -31,7 +31,6 @@ import java.util.*
 fun MediaFileItem(
     file: MediaFile,
     labels: List<Label>,
-    availableLabels: List<Label>,
     viewModel: GalleryViewModel,
     onLabelClick: (Label) -> Unit
 ) {
@@ -203,7 +202,6 @@ fun MediaFileItem(
 fun GroupHeader(
     groupIndex: Int,
     fileCount: Int,
-    availableLabels: List<Label>,
     viewModel: GalleryViewModel,
     onLabelClick: (Label) -> Unit
 ) {

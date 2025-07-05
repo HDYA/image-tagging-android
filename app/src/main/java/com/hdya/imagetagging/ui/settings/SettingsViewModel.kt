@@ -59,7 +59,7 @@ class SettingsViewModel(
             pageSize = values[6] as Int,
             isGeneratingCSV = values[7] as Boolean,
             csvContent = values[8] as String?,
-            pages = values[9] as List<com.hdya.imagetagging.ui.gallery.PageInfo>,
+            pages = values[9] as List<PageInfo>,
             showPageSelector = values[10] as Boolean
         )
     }.stateIn(
@@ -118,7 +118,7 @@ class SettingsViewModel(
                 
                 if (pages.size <= 1) {
                     // If only one page, generate CSV directly
-                    generateCSVContent(context, database, pages.firstOrNull())
+                    generateCSVContent(database, pages.firstOrNull())
                 } else {
                     // Show page selector
                     _showPageSelector.value = true
@@ -130,9 +130,9 @@ class SettingsViewModel(
         }
     }
     
-    fun generateCSVForPage(context: Context, database: com.hdya.imagetagging.data.AppDatabase, pageInfo: PageInfo?) {
+    fun generateCSVForPage(database: com.hdya.imagetagging.data.AppDatabase, pageInfo: PageInfo?) {
         _showPageSelector.value = false
-        generateCSVContent(context, database, pageInfo)
+        generateCSVContent(database, pageInfo)
     }
     
     fun hidePageSelector() {
@@ -192,7 +192,7 @@ class SettingsViewModel(
             else -> file.captureDate ?: file.lastModified
         }
     }
-    private fun generateCSVContent(context: Context, database: com.hdya.imagetagging.data.AppDatabase, pageInfo: PageInfo?) {
+    private fun generateCSVContent(database: com.hdya.imagetagging.data.AppDatabase, pageInfo: PageInfo?) {
         viewModelScope.launch {
             try {
                 _isGeneratingCSV.value = true
