@@ -43,7 +43,8 @@ data class GalleryUiState(
     val pages: List<PageInfo> = emptyList(),
     val totalFiles: Int = 0,
     val isGeneratingCSV: Boolean = false,
-    val csvContent: String? = null
+    val csvContent: String? = null,
+    val showNoUnlabeledMessage: Boolean = false // New state for "no unlabeled" message
 )
 
 class GalleryViewModel(
@@ -139,6 +140,9 @@ class GalleryViewModel(
                 
                 // Load first page
                 loadPage(0)
+                
+                // Load all file labels for cross-page search functionality
+                loadFileLabels(allFiles.map { it.path })
                 
             } catch (e: Exception) {
                 _uiState.value = currentState.copy(isLoading = false, isProcessing = false)
@@ -379,30 +383,105 @@ class GalleryViewModel(
     fun jumpToNextUnlabeled(listState: LazyListState) {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val unlabeledIndex = if (currentState.groupByDate) {
-                findNextUnlabeledInGroups(currentState)
-            } else {
-                findNextUnlabeledInFlat(currentState)
-            }
             
-            unlabeledIndex?.let { index ->
-                // Add bounds checking to prevent crash
-                val maxIndex = if (currentState.groupByDate) {
-                    // Calculate total items in grouped view
-                    var totalItems = 0
-                    currentState.groupedFiles.values.forEach { files ->
-                        totalItems += 1 + files.size // Group header + files
+            // Find unlabeled file starting from current page
+            val result = findNextUnlabeledAcrossPages(currentState)
+            
+            when {
+                result != null -> {
+                    // Found unlabeled file - navigate to it
+                    val (pageIndex, fileIndex) = result
+                    
+                    if (pageIndex != currentState.currentPage) {
+                        // Load the target page first
+                        loadPage(pageIndex)
+                        // Wait for page to load before scrolling
+                        kotlinx.coroutines.delay(100)
                     }
-                    totalItems - 1
-                } else {
-                    currentState.files.size - 1
+                    
+                    // Scroll to the specific file
+                    if (currentState.groupByDate) {
+                        // In grouped view, find the correct item index
+                        val targetIndex = findItemIndexInGroupedView(currentState, fileIndex)
+                        targetIndex?.let { index ->
+                            listState.animateScrollToItem(index)
+                        }
+                    } else {
+                        // In flat view, scroll directly to file index
+                        val currentPageFiles = currentState.files
+                        if (fileIndex < currentPageFiles.size) {
+                            listState.animateScrollToItem(fileIndex)
+                        }
+                    }
                 }
-                
-                if (index >= 0 && index <= maxIndex) {
-                    listState.animateScrollToItem(index)
+                else -> {
+                    // No unlabeled files found - show message
+                    _uiState.value = currentState.copy(showNoUnlabeledMessage = true)
                 }
             }
         }
+    }
+    
+    private fun findNextUnlabeledAcrossPages(uiState: GalleryUiState): Pair<Int, Int>? {
+        // Get all available labels for all files
+        val allFileLabels = uiState.fileLabels
+        
+        // Start searching from the current page
+        for (pageIndex in uiState.currentPage until uiState.pages.size) {
+            val pageInfo = uiState.pages[pageIndex]
+            val pageFiles = allFiles.subList(pageInfo.startIndex, pageInfo.endIndex + 1)
+            
+            // Find the first unlabeled file in this page
+            for ((localIndex, file) in pageFiles.withIndex()) {
+                val labels = allFileLabels[file.path] ?: emptyList()
+                if (labels.isEmpty()) {
+                    return Pair(pageIndex, localIndex)
+                }
+            }
+        }
+        
+        // If not found in remaining pages, search from the beginning
+        for (pageIndex in 0 until uiState.currentPage) {
+            val pageInfo = uiState.pages[pageIndex]
+            val pageFiles = allFiles.subList(pageInfo.startIndex, pageInfo.endIndex + 1)
+            
+            // Find the first unlabeled file in this page
+            for ((localIndex, file) in pageFiles.withIndex()) {
+                val labels = allFileLabels[file.path] ?: emptyList()
+                if (labels.isEmpty()) {
+                    return Pair(pageIndex, localIndex)
+                }
+            }
+        }
+        
+        return null // No unlabeled files found anywhere
+    }
+    
+    private fun findItemIndexInGroupedView(uiState: GalleryUiState, targetFileIndex: Int): Int? {
+        // This function converts a file index to the corresponding item index in grouped LazyColumn
+        val currentPageFiles = uiState.files
+        if (targetFileIndex >= currentPageFiles.size) return null
+        
+        val targetFile = currentPageFiles[targetFileIndex]
+        var itemIndex = 0
+        
+        for ((_, files) in uiState.groupedFiles.toSortedMap()) {
+            // Add group header
+            itemIndex += 1
+            
+            // Check files in this group
+            for (file in files) {
+                if (file.path == targetFile.path) {
+                    return itemIndex
+                }
+                itemIndex += 1
+            }
+            
+            // Add spacer
+            itemIndex += 1
+        }
+        
+        return null
     }
     
     private fun findNextUnlabeledInFlat(uiState: GalleryUiState): Int? {
@@ -518,5 +597,9 @@ class GalleryViewModel(
     
     fun clearCSVContent() {
         _csvContent.value = null
+    }
+    
+    fun dismissNoUnlabeledMessage() {
+        _uiState.value = _uiState.value.copy(showNoUnlabeledMessage = false)
     }
 }

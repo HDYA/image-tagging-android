@@ -300,4 +300,18 @@ fun GalleryScreen(
             }
         }
     }
+    
+    // No Unlabeled Files Message Dialog
+    if (uiState.showNoUnlabeledMessage) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissNoUnlabeledMessage() },
+            title = { Text("No Unlabeled Files") },
+            text = { Text("Cannot find next unlabeled file. All files have been labeled.") },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissNoUnlabeledMessage() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 }
