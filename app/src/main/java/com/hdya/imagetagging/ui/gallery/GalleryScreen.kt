@@ -207,7 +207,6 @@ fun GalleryScreen(
                             GroupHeader(
                                 groupIndex = groupIndex,
                                 fileCount = files.size,
-                                availableLabels = uiState.availableLabels,
                                 viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleGroupLabel(groupIndex, label)
@@ -218,7 +217,6 @@ fun GalleryScreen(
                             MediaFileItem(
                                 file = file,
                                 labels = uiState.fileLabels[file.path] ?: emptyList(),
-                                availableLabels = uiState.availableLabels,
                                 viewModel = viewModel,
                                 onLabelClick = { label ->
                                     viewModel.toggleFileLabel(file.path, label)
@@ -235,7 +233,6 @@ fun GalleryScreen(
                         MediaFileItem(
                             file = file,
                             labels = uiState.fileLabels[file.path] ?: emptyList(),
-                            availableLabels = uiState.availableLabels,
                             viewModel = viewModel,
                             onLabelClick = { label ->
                                 viewModel.toggleFileLabel(file.path, label)
@@ -302,5 +299,19 @@ fun GalleryScreen(
                 }
             }
         }
+    }
+    
+    // No Unlabeled Files Message Dialog
+    if (uiState.showNoUnlabeledMessage) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissNoUnlabeledMessage() },
+            title = { Text("No Unlabeled Files") },
+            text = { Text("Cannot find next unlabeled file. All files have been labeled.") },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissNoUnlabeledMessage() }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
